@@ -1,0 +1,32 @@
+2026-07-29T15:25:00Z [INFO] Service started
+2026-07-29T15:25:05Z [WARN] High memory usage detected
+2026-07-29T15:25:10Z [INFO] Health check passed
+2026-07-29T15:27:00Z [ERROR] Database connection failed
+2026-07-29T15:27:20Z [ERROR] Database connection failed
+2026-07-29T15:27:40Z [ERROR] Timeout while connecting to database
+2026-07-29T15:28:00Z [ERROR] Database connection failed
+2026-07-29T15:28:20Z [ERROR] Failed to acquire connection from pool
+2026-07-29T15:28:40Z [ERROR] Database connection failed
+2026-07-29T15:29:00Z [ERROR] Timeout while connecting to database
+2026-07-29T15:29:20Z [ERROR] Database connection failed
+2026-07-29T15:29:40Z [ERROR] Failed to acquire connection from pool
+2026-07-29T15:30:00Z [ERROR] Database connection failed
+2026-07-29T15:30:20Z [ERROR] Database connection failed
+2026-07-29T15:30:40Z [ERROR] Database connection failed
+2026-07-29T15:31:00Z [INFO] Recovered
+2026-07-29T15:32:00Z [INFO] Health check passed
+2026-07-29T15:35:00Z [WARN] Elevated latency
+2026-07-29T15:40:00Z [ERROR] Isolated error, not a burst
+2026-07-29T16:00:00Z [ERROR] Disk write failure
+2026-07-29T16:00:20Z [ERROR] Disk write failure
+2026-07-29T16:00:40Z [ERROR] Disk write failure
+2026-07-29T16:01:00Z [ERROR] Disk write failure
+2026-07-29T16:01:20Z [ERROR] Disk write failure
+2026-07-29T16:01:40Z [ERROR] Disk write failure
+2026-07-29T16:02:00Z [ERROR] Disk write failure
+2026-07-29T16:02:20Z [ERROR] Disk write failure
+2026-07-29T16:02:40Z [ERROR] Disk write failure
+2026-07-29T16:03:00Z [ERROR] Disk write failure
+2026-07-29T16:03:20Z [ERROR] Disk write failure
+2026-07-29T16:03:40Z [ERROR] Disk write failure
+2026-07-29T16:05:00Z [INFO] Service stable
