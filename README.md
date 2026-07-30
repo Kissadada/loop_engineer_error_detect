@@ -19,7 +19,11 @@ python3 error_burst_detector.py <input.log> <output.txt> [--threshold N] [--wind
 ```
 
 `--threshold` (default `10`) and `--window-minutes` (default `5`) override
-the burst definition without touching code.
+the burst definition without touching code. Both must be positive; a
+non-positive value or a missing `<input.log>` file exits non-zero with a
+clear error on stderr instead of a traceback. Unparseable input lines are
+skipped and reported as a count on stderr (e.g. `Warning: skipped 2
+unparseable line(s) in ...`), not silently dropped.
 
 Example:
 

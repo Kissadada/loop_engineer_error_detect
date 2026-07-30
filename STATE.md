@@ -65,3 +65,72 @@ PASSED**, 19/19 tests green (was 13/13 before this pass).
 - Nothing outstanding from this review cycle. Future sessions: re-run
   `bash run_checks.sh` before trusting this file, since STATE.md is a
   snapshot and the repo may have moved on.
+
+---
+
+# Follow-up: 5-round improvement pass (2026-07-30, later same day)
+
+One improvement found and applied per round, verified with
+`bash run_checks.sh` after each. Test count: 19 → 23. Final: **ALL CHECKS
+PASSED**.
+
+1. **Skip-warning printed to stdout instead of stderr.** — DONE
+   - Fix: `read_log_entries`'s "skipped N unparseable line(s)" warning now
+     goes to `sys.stderr` instead of stdout, so it doesn't pollute stdout
+     for callers/scripts consuming the tool's normal output.
+   - Test updated: `test_read_log_entries_warns_on_skipped_lines` now
+     checks `capsys.readouterr().err` instead of `.out`.
+   - Verified: passes (19/19 at this point).
+
+2. **Missing log file raised a raw traceback.** — DONE
+   - Fix: `main()` now catches `FileNotFoundError` from `read_log_entries`
+     and exits cleanly via `parser.error(...)` instead of an unhandled
+     traceback.
+   - Test added: `test_main_reports_clean_error_for_missing_log_file`.
+   - Verified: passes (20/20).
+
+3. **README drifted from actual CLI behavior.** — DONE
+   - Fix: documented the new positive-value validation, missing-file
+     error, and stderr skip-warning in README's Usage section.
+   - No test (docs-only change); verified via `run_checks.sh` (lint still
+     clean, no regressions) — 20/20.
+
+4. **Missing output directory raised a raw traceback.** — DONE
+   - Fix: same treatment as item 2 but for `write_alerts` — `main()` now
+     catches `FileNotFoundError` and reports
+     "cannot write output file (no such directory): ..." cleanly.
+   - Test added: `test_main_reports_clean_error_for_missing_output_dir`.
+   - Verified: passes (21/21).
+
+5. **`IsADirectoryError` not covered by the new file-error handling.** —
+   DONE
+   - Fix: broadened both `except FileNotFoundError` clauses in `main()` to
+     `except (FileNotFoundError, IsADirectoryError)`, since passing a
+     directory as `log_file` or `output_file` hit the same
+     traceback-instead-of-clean-error gap items 2 and 4 just fixed.
+   - Tests added:
+     `test_main_reports_clean_error_when_log_file_is_a_directory`,
+     `test_main_reports_clean_error_when_output_file_is_a_directory`.
+   - Verified: passes (23/23, final).
+
+## Verification (this pass)
+
+- `bash run_checks.sh` → `ALL CHECKS PASSED` after every one of the 5
+  rounds, individually, before moving to the next.
+- Test count: 19 → 23 (4 new tests + 1 test updated in place for the
+  stderr change).
+- No regressions at any round.
+
+## Failed / blocked (this pass)
+
+- None.
+
+## Not doing (unchanged)
+
+- `parts[1].strip("[]")` accepting severity without surrounding brackets
+  — still not worth tightening without a reported need.
+- Burst `end` timestamp freezes at the moment the burst first crosses
+  threshold rather than tracking the full sustained-burst duration. This
+  is existing, well-tested, documented (README example) behavior — not
+  touched, since changing core detection semantics wasn't part of this
+  improvement pass and risks an unreviewed behavior change.
