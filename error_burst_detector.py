@@ -30,16 +30,25 @@ def parse_log_line(line):
 
 def read_log_entries(filepath):
     entries = []
+    skipped = 0
     with open(filepath) as f:
         for line in f:
             entry = parse_log_line(line)
             if entry is not None:
                 entries.append(entry)
+            elif line.strip():
+                skipped += 1
+    if skipped:
+        print(f"Warning: skipped {skipped} unparseable line(s) in {filepath}")
+    entries.sort(key=lambda e: e.timestamp)
     return entries
 
 
 def detect_bursts(entries, window_seconds=WINDOW_SECONDS, threshold=THRESHOLD):
-    """Return one Burst per period where ERROR lines in a sliding window reach threshold."""
+    """Return one Burst per period where ERROR lines in a sliding window reach threshold.
+
+    Assumes entries are sorted by timestamp (read_log_entries guarantees this).
+    """
     bursts = []
     window = deque()
     in_burst = False
@@ -91,6 +100,11 @@ def main():
         help=f"Sliding window size in minutes (default: {WINDOW_SECONDS / 60:g})",
     )
     args = parser.parse_args()
+
+    if args.threshold <= 0:
+        parser.error("--threshold must be a positive integer")
+    if args.window_minutes <= 0:
+        parser.error("--window-minutes must be a positive number")
 
     entries = read_log_entries(args.log_file)
     bursts = detect_bursts(

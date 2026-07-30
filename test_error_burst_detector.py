@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from datetime import datetime, timedelta, timezone
 
 from error_burst_detector import (
@@ -5,6 +7,7 @@ from error_burst_detector import (
     format_alert,
     parse_log_line,
     read_log_entries,
+    write_alerts,
 )
 
 BASE = datetime(2026, 7, 29, 15, 0, 0, tzinfo=timezone.utc)
@@ -114,6 +117,93 @@ def test_sparse_errors_in_log_file_no_alert(tmp_path):
     entries = read_log_entries(str(log_file))
     bursts = detect_bursts(entries)
     assert bursts == []
+
+
+def test_read_log_entries_sorts_out_of_order_lines(tmp_path):
+    # 10 ERRORs 20s apart, written to the file in reverse chronological order.
+    offsets = list(range(0, 200, 20))
+    lines = [
+        f"{(BASE + timedelta(seconds=s)).strftime('%Y-%m-%dT%H:%M:%SZ')} [ERROR] x"
+        for s in reversed(offsets)
+    ]
+    log_file = tmp_path / "unordered.log"
+    log_file.write_text("\n".join(lines) + "\n")
+
+    entries = read_log_entries(str(log_file))
+    assert [e.timestamp for e in entries] == sorted(e.timestamp for e in entries)
+
+    bursts = detect_bursts(entries)
+    assert len(bursts) == 1
+    assert bursts[0].count == 10
+
+
+def test_read_log_entries_warns_on_skipped_lines(tmp_path, capsys):
+    log_file = tmp_path / "bad.log"
+    log_file.write_text("not a valid line\nalso bad\n")
+
+    entries = read_log_entries(str(log_file))
+    assert entries == []
+    assert "skipped 2 unparseable line(s)" in capsys.readouterr().out
+
+
+def test_write_alerts(tmp_path):
+    entries = make_entries(range(0, 200, 20))
+    bursts = detect_bursts(entries)
+    out_file = tmp_path / "alerts.txt"
+
+    write_alerts(bursts, str(out_file))
+
+    assert out_file.read_text() == format_alert(bursts[0]) + "\n"
+
+
+def test_main_end_to_end(tmp_path):
+    out_file = tmp_path / "burst.txt"
+    result = subprocess.run(
+        [sys.executable, "error_burst_detector.py", "sample_log.txt", str(out_file)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "Detected 2 burst(s)" in result.stdout
+    lines = out_file.read_text().splitlines()
+    assert len(lines) == 2
+    assert all(line.startswith("ALERT ") for line in lines)
+
+
+def test_main_rejects_non_positive_threshold(tmp_path):
+    out_file = tmp_path / "burst.txt"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "error_burst_detector.py",
+            "sample_log.txt",
+            str(out_file),
+            "--threshold",
+            "0",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "--threshold must be a positive integer" in result.stderr
+
+
+def test_main_rejects_non_positive_window(tmp_path):
+    out_file = tmp_path / "burst.txt"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "error_burst_detector.py",
+            "sample_log.txt",
+            str(out_file),
+            "--window-minutes",
+            "-1",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "--window-minutes must be a positive number" in result.stderr
 
 
 def test_mixed_severity_log_file_ignores_non_errors(tmp_path):
