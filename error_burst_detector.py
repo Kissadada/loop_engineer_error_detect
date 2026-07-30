@@ -47,11 +47,18 @@ def read_log_entries(filepath):
 def detect_bursts(entries, window_seconds=WINDOW_SECONDS, threshold=THRESHOLD):
     """Return one Burst per period where ERROR lines in a sliding window reach threshold.
 
+    A burst stays open (accumulating count and extending its end) for as long as
+    the sliding window keeps reaching threshold, even if that spans many window
+    lengths, and is only closed once the rate drops back below threshold.
+
     Assumes entries are sorted by timestamp (read_log_entries guarantees this).
     """
     bursts = []
     window = deque()
     in_burst = False
+    burst_start = None
+    burst_end = None
+    burst_count = 0
 
     for entry in entries:
         if entry.severity != "ERROR":
@@ -63,10 +70,18 @@ def detect_bursts(entries, window_seconds=WINDOW_SECONDS, threshold=THRESHOLD):
 
         if len(window) >= threshold:
             if not in_burst:
-                bursts.append(Burst(start=window[0], end=entry.timestamp, count=len(window)))
+                burst_start = window[0]
+                burst_count = len(window)
                 in_burst = True
-        else:
+            else:
+                burst_count += 1
+            burst_end = entry.timestamp
+        elif in_burst:
+            bursts.append(Burst(start=burst_start, end=burst_end, count=burst_count))
             in_burst = False
+
+    if in_burst:
+        bursts.append(Burst(start=burst_start, end=burst_end, count=burst_count))
 
     return bursts
 

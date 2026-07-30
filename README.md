@@ -30,7 +30,9 @@ python3 error_burst_detector.py sample_log.txt burst.txt
 Output (`burst.txt`), one line per burst:
 
 ```
-ALERT 10 ERROR lines between 2026-07-29T15:27:00Z and 2026-07-29T15:30:00Z
+ALERT 12 ERROR lines between 2026-07-29T15:27:00Z and 2026-07-29T15:30:40Z
+ALERT 33 ERROR lines between 2026-07-29T16:02:00Z and 2026-07-29T16:10:00Z
+ALERT 12 ERROR lines between 2026-07-29T16:21:00Z and 2026-07-29T16:24:40Z
 ```
 
 Custom threshold/window:
@@ -43,8 +45,11 @@ python3 error_burst_detector.py sample_log.txt burst.txt --threshold 3 --window-
 
 - `error_burst_detector.py` — parser + sliding-window burst detector + CLI
 - `test_error_burst_detector.py` — pytest suite
-- `sample_log.txt` — sample log with two deliberate bursts, for manual testing
-- `smoke_test.sh` — end-to-end smoke test (runs the CLI against a synthetic log)
+- `sample_log.txt` — sample log with three deliberate bursts (one sustained
+  past the 5-minute window), for manual testing
+- `smoke_test.sh` — end-to-end smoke test (runs the CLI against a synthetic
+  log with a short burst and a 7-minute sustained burst, and checks the
+  sustained burst's alert reflects its true length)
 - `run_checks.sh` — lint, tests, smoke test, in order
 - `pyproject.toml` — pinned ruff config
 

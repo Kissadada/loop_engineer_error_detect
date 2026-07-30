@@ -3,6 +3,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 from error_burst_detector import (
+    WINDOW_SECONDS,
     detect_bursts,
     format_alert,
     parse_log_line,
@@ -77,6 +78,37 @@ def test_one_alert_per_sustained_burst_not_per_line():
     assert len(bursts) == 1
 
 
+def test_burst_end_and_count_keep_growing_past_one_window():
+    # 60 ERRORs 20s apart span 1180s (~19.7 min) of continuous high rate,
+    # nearly 4x the 300s window. The burst must stay open and its end/count
+    # must keep tracking the actual last error, not freeze at the moment
+    # the window first reached threshold (that was the bug: a burst could
+    # silently run far longer than the window without the report reflecting
+    # it, capping duration at window_seconds and count at ~threshold).
+    entries = make_entries(range(0, 1200, 20))
+    bursts = detect_bursts(entries)
+    assert len(bursts) == 1
+
+    burst = bursts[0]
+    assert burst.count == len(entries)
+    assert burst.end == entries[-1].timestamp
+    assert (burst.end - burst.start).total_seconds() > WINDOW_SECONDS
+
+
+def test_burst_closes_when_rate_drops_then_reopens_as_new_burst():
+    # A sustained burst that dips below threshold, then resumes, should be
+    # reported as two separate closed bursts, not one that silently
+    # swallows the gap.
+    high_rate = list(range(0, 200, 20))  # 10 ERRORs, crosses threshold
+    gap = list(range(200, 800, 300))  # sparse, keeps window below threshold
+    high_rate_again = list(range(800, 1000, 20))  # 10 more ERRORs
+    entries = make_entries(high_rate + gap + high_rate_again)
+
+    bursts = detect_bursts(entries)
+    assert len(bursts) == 2
+    assert bursts[0].end < bursts[1].start
+
+
 def test_two_separate_bursts_yield_two_alerts():
     burst1 = range(0, 200, 20)  # 10 ERRORs
     burst2 = range(2000, 2200, 20)  # 10 more ERRORs, well outside first window
@@ -100,10 +132,17 @@ def test_format_alert():
     assert "2026-07-29T15:03:00Z" in line
 
 
-def test_sample_log_file_produces_two_bursts():
+def test_sample_log_file_produces_three_bursts():
     entries = read_log_entries("sample_log.txt")
     bursts = detect_bursts(entries)
-    assert len(bursts) == 2
+    assert len(bursts) == 3
+
+    # One of the bursts is a sustained burst that runs longer than the
+    # 5-minute window itself (regression check for the bug where a burst's
+    # reported end froze at the moment threshold was first crossed instead
+    # of tracking how long the burst actually continued).
+    durations = [(b.end - b.start).total_seconds() for b in bursts]
+    assert any(d > 300 for d in durations)
 
 
 def test_sparse_errors_in_log_file_no_alert(tmp_path):
@@ -164,9 +203,9 @@ def test_main_end_to_end(tmp_path):
         text=True,
         check=True,
     )
-    assert "Detected 2 burst(s)" in result.stdout
+    assert "Detected 3 burst(s)" in result.stdout
     lines = out_file.read_text().splitlines()
-    assert len(lines) == 2
+    assert len(lines) == 3
     assert all(line.startswith("ALERT ") for line in lines)
 
 
