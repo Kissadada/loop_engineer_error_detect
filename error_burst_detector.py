@@ -2,6 +2,7 @@
 """Detect bursts of ERROR log lines within a sliding time window (default: 10+ in 5 minutes)."""
 
 import argparse
+import sys
 from collections import deque, namedtuple
 from datetime import datetime, timezone
 
@@ -39,7 +40,7 @@ def read_log_entries(filepath):
             elif line.strip():
                 skipped += 1
     if skipped:
-        print(f"Warning: skipped {skipped} unparseable line(s) in {filepath}")
+        print(f"Warning: skipped {skipped} unparseable line(s) in {filepath}", file=sys.stderr)
     entries.sort(key=lambda e: e.timestamp)
     return entries
 
@@ -106,11 +107,19 @@ def main():
     if args.window_minutes <= 0:
         parser.error("--window-minutes must be a positive number")
 
-    entries = read_log_entries(args.log_file)
+    try:
+        entries = read_log_entries(args.log_file)
+    except (FileNotFoundError, IsADirectoryError):
+        parser.error(f"log file not found: {args.log_file}")
+
     bursts = detect_bursts(
         entries, window_seconds=args.window_minutes * 60, threshold=args.threshold
     )
-    write_alerts(bursts, args.output_file)
+    try:
+        write_alerts(bursts, args.output_file)
+    except (FileNotFoundError, IsADirectoryError):
+        parser.error(f"cannot write output file (no such directory): {args.output_file}")
+
     print(f"Detected {len(bursts)} burst(s); alerts written to {args.output_file}")
 
 

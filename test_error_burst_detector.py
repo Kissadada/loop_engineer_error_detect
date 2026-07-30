@@ -143,7 +143,7 @@ def test_read_log_entries_warns_on_skipped_lines(tmp_path, capsys):
 
     entries = read_log_entries(str(log_file))
     assert entries == []
-    assert "skipped 2 unparseable line(s)" in capsys.readouterr().out
+    assert "skipped 2 unparseable line(s)" in capsys.readouterr().err
 
 
 def test_write_alerts(tmp_path):
@@ -186,6 +186,54 @@ def test_main_rejects_non_positive_threshold(tmp_path):
     )
     assert result.returncode != 0
     assert "--threshold must be a positive integer" in result.stderr
+
+
+def test_main_reports_clean_error_for_missing_log_file(tmp_path):
+    missing = tmp_path / "does_not_exist.log"
+    out_file = tmp_path / "burst.txt"
+    result = subprocess.run(
+        [sys.executable, "error_burst_detector.py", str(missing), str(out_file)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "log file not found" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_main_reports_clean_error_for_missing_output_dir(tmp_path):
+    out_file = tmp_path / "no_such_dir" / "burst.txt"
+    result = subprocess.run(
+        [sys.executable, "error_burst_detector.py", "sample_log.txt", str(out_file)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "cannot write output file" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_main_reports_clean_error_when_log_file_is_a_directory(tmp_path):
+    out_file = tmp_path / "burst.txt"
+    result = subprocess.run(
+        [sys.executable, "error_burst_detector.py", str(tmp_path), str(out_file)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "log file not found" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_main_reports_clean_error_when_output_file_is_a_directory(tmp_path):
+    result = subprocess.run(
+        [sys.executable, "error_burst_detector.py", "sample_log.txt", str(tmp_path)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "cannot write output file" in result.stderr
+    assert "Traceback" not in result.stderr
 
 
 def test_main_rejects_non_positive_window(tmp_path):
